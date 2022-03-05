@@ -53,7 +53,8 @@ def connect():
 
 
 def write_to_exchange(exchange, obj):
-    # print("Message sent: ", obj, file=sys.stderr)
+    if test_mode:
+        print("Message sent: ", obj, file=sys.stderr)
     json.dump(obj, exchange)
     exchange.write("\n")
 
@@ -64,7 +65,8 @@ def read_from_exchange(exchange):
 
 def update_details(exchange):
     message = read_from_exchange(exchange)
-    # print("The exchange replied:", message, file=sys.stderr)
+    if test_mode:
+        print("The exchange replied:", message, file=sys.stderr)
     if message["type"] == "open":
         for syms in message["symbols"]:
             symbols[syms] = ([], [])
@@ -72,7 +74,8 @@ def update_details(exchange):
             symbol_max_counts[syms] = 0
     elif message["type"] == "close":
         for syms in message["symbols"]:
-            symbols.pop(syms)
+            if symbols.get(syms) is not None:
+                symbols.pop(syms)
     elif message["type"] == "book":
         symbols[message["symbol"]] = (message["buy"], message["sell"])
     elif message["type"] == "fill":
@@ -121,11 +124,13 @@ def main():
     # time for every read_from_exchange() response.
     # Since many write messages generate marketdata, this will cause an
     # exponential explosion in pending messages. Please, don't do that!
-    # print("The exchange replied:", hello_from_exchange, file=sys.stderr)
+    if test_mode:
+        print("The exchange replied:", hello_from_exchange, file=sys.stderr)
     while True:
         update_details(exchange)
         message = read_from_exchange(exchange)
-        # print("The exchange replied:", message, file=sys.stderr)
+        if test_mode:
+            print("The exchange replied:", message, file=sys.stderr)
         # transaction(exchange, {type: "ADD", "symbol": "BOND", "dir": "SELL", "price": 1001, "size": 1})
         for order in bond.bond_order(symbols["BOND"][0], symbols["BOND"][1]):
             transaction(exchange, order)
