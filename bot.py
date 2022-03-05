@@ -17,7 +17,7 @@ import bond
 team_name = "INTRATERRESTRIALCREATURES"
 # This variable dictates whether or not the bot is connecting to the prod
 # or test exchange. Be careful with this switch!
-test_mode = True
+test_mode = False
 
 # This setting changes which test exchange is connected to.
 # 0 is prod-like
@@ -53,7 +53,7 @@ def connect():
 
 
 def write_to_exchange(exchange, obj):
-    print("Message sent: ", obj, file=sys.stderr)
+    # print("Message sent: ", obj, file=sys.stderr)
     json.dump(obj, exchange)
     exchange.write("\n")
 
@@ -64,7 +64,7 @@ def read_from_exchange(exchange):
 
 def update_details(exchange):
     message = read_from_exchange(exchange)
-    print("The exchange replied:", message, file=sys.stderr)
+    # print("The exchange replied:", message, file=sys.stderr)
     if message["type"] == "open":
         for syms in message["symbols"]:
             symbols[syms] = ([], [])
@@ -76,6 +76,7 @@ def update_details(exchange):
     elif message["type"] == "book":
         symbols[message["symbol"]] = (message["buy"], message["sell"])
     elif message["type"] == "fill":
+        print("Message sent: ", orders[message["order_id"] - 1], file=sys.stderr)
         symbol_counts[message["symbol"]] += (1 if message["dir"] == "BUY" else -1) * message["size"]
         symbol_counts["USD"] += (1 if message["dir"] == "BUY" else -1) * message["price"] * message["size"]
     elif message["type"] == "ack":
@@ -120,11 +121,12 @@ def main():
     # time for every read_from_exchange() response.
     # Since many write messages generate marketdata, this will cause an
     # exponential explosion in pending messages. Please, don't do that!
-    print("The exchange replied:", hello_from_exchange, file=sys.stderr)
+    # print("The exchange replied:", hello_from_exchange, file=sys.stderr)
     while True:
         update_details(exchange)
         message = read_from_exchange(exchange)
-        print("The exchange replied:", message, file=sys.stderr)
+        # print("The exchange replied:", message, file=sys.stderr)
+        # transaction(exchange, {type: "ADD", "symbol": "BOND", "dir": "SELL", "price": 1001, "size": 1})
         for order in bond.bond_order(symbols["BOND"][0], symbols["BOND"][1]):
             transaction(exchange, order)
 
