@@ -106,8 +106,12 @@ def transaction(exchange, order):
         symbol_max_counts[order["symbol"]
                           ] -= (1 if order["dir"] == "BUY" else -1) * order["size"]
         return (False, None)
-    write_to_exchange(exchange, {"type": "add", "order_id": order_id,
+    if order["type"] == "add":
+        write_to_exchange(exchange, {"type": "add", "order_id": order_id,
                           "symbol": order["symbol"], "dir": order["dir"], "price": order["price"], "size": order["size"]})
+    else:
+        write_to_exchange(exchange, {"type": "convert", "order_id": order_id,
+                          "symbol": order["symbol"], "dir": order["dir"], "size": order["size"]})
     orders.append(order)
     order_id += 1
     return get_ack(exchange)
