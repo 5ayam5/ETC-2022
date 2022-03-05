@@ -27,7 +27,19 @@ test_exchange_index = 0
 prod_exchange_hostname = "production"
 
 symbols = {}
-symbol_counts = {}
+symbol_counts = {"USD": 0}
+symbol_max_counts = {}
+symbol_limits = {
+    "BOND": 100,
+    "GS": 100,
+    "MS": 100,
+    "VALBZ": 10,
+    "VALE": 10,
+    "WFC": 100,
+    "XLF": 100
+}
+
+orders = []
 order_id = 1
 
 port = 25000 + (test_exchange_index if test_mode else 0)
@@ -57,6 +69,7 @@ def update_details(exchange):
         for syms in message["symbols"]:
             symbols[syms] = ([], [])
             symbol_counts[syms] = 0
+            symbol_max_counts[syms] = 0
     elif message["type"] == "close":
         for syms in message["symbols"]:
             symbols.pop(syms)
@@ -64,9 +77,13 @@ def update_details(exchange):
         symbols[message["symbol"]] = (message["buy"], message["sell"])
     elif message["type"] == "fill":
         symbol_counts[message["symbol"]] += (1 if message["dir"] == "BUY" else -1) * message["size"]
+        symbol_counts["USD"] += (1 if message["dir"] == "BUY" else -1) * message["price"] * message["size"]
     elif message["type"] == "ack":
         return (True, message["order_id"])
     elif message["type"] == "reject":
+        order = orders[message["order_id"] - 1]
+        symbol_max_counts[order["symbol"]
+                          ] -= (1 if order["dir"] == "BUY" else -1) * order["size"]
         return (False, (message["order_id"], message["error"]))
 
 
@@ -77,13 +94,18 @@ def get_ack(exchange):
         if ret is not None:
             return ret
 
-def transaction(exchange, symbol, price, quantity, direction):
+def transaction(exchange, order):
     global order_id
-    print(order_id)
+    symbol_max_counts[order["symbol"]
+                      ] += (1 if order["dir"] == "BUY" else -1) * order["size"]
+    if abs(symbol_max_counts[order["symbol"]]) >= symbol_limits[order["symbol"]]:
+        symbol_max_counts[order["symbol"]
+                          ] -= (1 if order["dir"] == "BUY" else -1) * order["size"]
+        return (False, None)
     write_to_exchange(exchange, {"type": "add", "order_id": order_id,
-                          "symbol": symbol, "dir": direction, "price": price, "size": quantity})
+                          "symbol": order["symbol"], "dir": order["dir"], "price": order["price"], "size": order["size"]})
+    orders.append(order)
     order_id += 1
-    print(order_id)
     return get_ack(exchange)
 
 # ~~~~~============== MAIN LOOP ==============~~~~~
@@ -99,14 +121,13 @@ def main():
     # Since many write messages generate marketdata, this will cause an
     # exponential explosion in pending messages. Please, don't do that!
     print("The exchange replied:", hello_from_exchange, file=sys.stderr)
-    i = 0
-    while i < 10:
+    while True:
         update_details(exchange)
         message = read_from_exchange(exchange)
         print("The exchange replied:", message, file=sys.stderr)
-        transaction(exchange, "BOND", 1001, 1, "SELL")
+        transaction(exchange, {type: "ADD", "symbol": "BOND", "dir": "SELL", "price": 1001, "size": 1})
         for order in bond.bond_order(symbols["BOND"][0], symbols["BOND"][1]):
-            transaction(exchange, order["symbol"], order["price"], order["size"], order["dir"])
+            transaction(exchange, order)
 
 
 if __name__ == "__main__":
