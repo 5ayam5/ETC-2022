@@ -125,7 +125,6 @@ def main():
         update_details(exchange)
         message = read_from_exchange(exchange)
         print("The exchange replied:", message, file=sys.stderr)
-        transaction(exchange, {type: "ADD", "symbol": "BOND", "dir": "SELL", "price": 1001, "size": 1})
         for order in bond.bond_order(symbols["BOND"][0], symbols["BOND"][1]):
             transaction(exchange, order)
 
