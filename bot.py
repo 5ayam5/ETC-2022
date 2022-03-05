@@ -11,6 +11,7 @@ import sys
 import socket
 import json
 import bond
+import adr
 
 # ~~~~~============== CONFIGURATION  ==============~~~~~
 # replace REPLACEME with your team name!
@@ -26,7 +27,14 @@ test_mode = False
 test_exchange_index = 0
 prod_exchange_hostname = "production"
 
-symbols = {}
+symbols = {"BOND": ([], []),
+    "GS": ([], []),
+    "MS": ([], []),
+    "VALBZ": ([], []),
+    "VALE": ([], []),
+    "WFC": ([], []),
+    "XLF": ([], [])
+}
 symbol_counts = {"USD": 0}
 symbol_max_counts = {}
 symbol_limits = {
@@ -76,6 +84,9 @@ def update_details(exchange):
         for syms in message["symbols"]:
             if symbols.get(syms) is not None:
                 symbols.pop(syms)
+                if len(symbols) == 0:
+                    exchange.close()
+                    exit(0)
     elif message["type"] == "book":
         symbols[message["symbol"]] = (message["buy"], message["sell"])
     elif message["type"] == "fill":
@@ -106,7 +117,7 @@ def transaction(exchange, order):
         symbol_max_counts[order["symbol"]
                           ] -= (1 if order["dir"] == "BUY" else -1) * order["size"]
         return (False, None)
-    if order["type"] == "add":
+    if order[type] == "add":
         write_to_exchange(exchange, {"type": "add", "order_id": order_id,
                           "symbol": order["symbol"], "dir": order["dir"], "price": order["price"], "size": order["size"]})
     else:
@@ -137,6 +148,8 @@ def main():
             print("The exchange replied:", message, file=sys.stderr)
         # transaction(exchange, {type: "ADD", "symbol": "BOND", "dir": "SELL", "price": 1001, "size": 1})
         for order in bond.bond_order(symbols["BOND"][0], symbols["BOND"][1]):
+            transaction(exchange, order)
+        for order in adr.adr_order(symbols["VALE"], symbols["VALBZ"]):
             transaction(exchange, order)
 
 
